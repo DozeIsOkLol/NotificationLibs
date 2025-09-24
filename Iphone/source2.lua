@@ -1,8 +1,7 @@
 --!/usr/bin/env lua
--- iOSNotifInteractiveSource.lua
--- This version supports stacking, timers, AND swipe-to-dismiss gestures.
-
---- v0.2
+-- iOSNotifInteractiveSource.lua (Version 3 - PC Swipe Fixed)
+-- This version specifically corrects the click-and-drag functionality for PC users.
+--- v0.3
 
 local module = {}
 
@@ -36,15 +35,7 @@ NotifGui.Parent = CoreGui
 
 -- Template to be cloned for each notification
 local NotificationTemplate = Instance.new("Frame")
-NotificationTemplate.Name = "NotificationTemplate"
-NotificationTemplate.Visible = false
-NotificationTemplate.Size = UDim2.new(0, NOTIFICATION_WIDTH, 0, BASE_HEIGHT)
-NotificationTemplate.AnchorPoint = Vector2.new(0.5, 0)
-NotificationTemplate.Position = UDim2.new(0.5, 0, 0, -BASE_HEIGHT - 20)
-NotificationTemplate.BackgroundColor3 = Color3.fromRGB(240, 240, 240)
-NotificationTemplate.BackgroundTransparency = 0.25
-NotificationTemplate.Parent = NotifGui
--- The rest of the template UI...
+NotificationTemplate.Name = "NotificationTemplate"; NotificationTemplate.Visible = false; NotificationTemplate.Size = UDim2.new(0, NOTIFICATION_WIDTH, 0, BASE_HEIGHT); NotificationTemplate.AnchorPoint = Vector2.new(0.5, 0); NotificationTemplate.Position = UDim2.new(0.5, 0, 0, -BASE_HEIGHT - 20); NotificationTemplate.BackgroundColor3 = Color3.fromRGB(240, 240, 240); NotificationTemplate.BackgroundTransparency = 0.25; NotificationTemplate.Parent = NotifGui
 local UICorner = Instance.new("UICorner"); UICorner.CornerRadius = UDim.new(0, 24); UICorner.Parent = NotificationTemplate
 local AppIcon = Instance.new("ImageLabel"); AppIcon.Name = "AppIcon"; AppIcon.Size = UDim2.new(0, ICON_SIZE, 0, ICON_SIZE); AppIcon.Position = UDim2.new(0, PADDING, 0, PADDING); AppIcon.BackgroundTransparency = 1; AppIcon.Image = "rbxassetid://6031999801"; AppIcon.Parent = NotificationTemplate
 local AppIconCorner = Instance.new("UICorner"); AppIconCorner.CornerRadius = UDim.new(0, 6); AppIconCorner.Parent = AppIcon
@@ -71,12 +62,10 @@ local function repositionAll()
     end
 end
 
--- Universal function to dismiss a notification, whether by timer or swipe
 local function dismissNotification(notifFrame, swipeDirection)
     if not notifFrame or notifFrame:GetAttribute("IsDismissing") then return end
     notifFrame:SetAttribute("IsDismissing", true)
 
-    -- Remove from the active list
     for i, v in ipairs(activeNotifications) do
         if v == notifFrame then
             table.remove(activeNotifications, i)
@@ -87,9 +76,9 @@ local function dismissNotification(notifFrame, swipeDirection)
     repositionAll()
     
     local exitPosition
-    if swipeDirection then -- Swiped off screen
+    if swipeDirection then
         exitPosition = UDim2.new(0.5 + (0.6 * swipeDirection), 0, notifFrame.Position.Y.Scale, notifFrame.Position.Y.Offset)
-    else -- Timed out
+    else
          exitPosition = UDim2.new(0.5, 0, 0, -notifFrame.AbsoluteSize.Y)
     end
 
@@ -106,7 +95,7 @@ function module.Notify(data)
     end
 
     local newNotif = NotificationTemplate:Clone()
-    -- Populate content...
+    -- Populate content
     newNotif.TitleLabel.Text = data.Title or "Notification"
     newNotif.DescriptionLabel.Text = data.Description or ""
     newNotif.AppIcon.Image = data.Icon or "rbxassetid://6031999801"
@@ -123,41 +112,42 @@ function module.Notify(data)
     newNotif.Parent = NotifGui
     newNotif.Visible = true
 
-    -- Add to the top of the active notifications list
     table.insert(activeNotifications, 1, newNotif)
     repositionAll()
 
-    -- Handle swipe input
-    local inputBeganConn, inputChangedConn, inputEndedConn
-    local isSwiping = false
+    -- PC SWIPE LOGIC
+    local isDragging = false
     local startX, startPos
+    local mouseMoveConn, mouseUpConn
 
-    inputBeganConn = newNotif.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            isSwiping = true
-            startX = input.Position.X
+    newNotif.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            isDragging = true
+            startX = UserInputService:GetMouseLocation().X
             startPos = newNotif.Position.X.Offset
             
-            inputChangedConn = input.Changed:Connect(function()
-                if isSwiping then
-                    local deltaX = input.Position.X - startX
+            mouseMoveConn = UserInputService.InputChanged:Connect(function(moveInput)
+                if moveInput.UserInputType == Enum.UserInputType.MouseMovement then
+                    local currentX = UserInputService:GetMouseLocation().X
+                    local deltaX = currentX - startX
                     newNotif.Position = UDim2.new(0.5, startPos + deltaX, newNotif.Position.Y.Scale, newNotif.Position.Y.Offset)
                 end
             end)
-            
-            inputEndedConn = UserInputService.InputEnded:Connect(function(endInput)
-                if endInput.UserInputType == input.UserInputType then
-                    isSwiping = false
-                    if inputChangedConn then inputChangedConn:Disconnect() end
-                    if inputEndedConn then inputEndedConn:Disconnect() end
 
-                    local deltaX = endInput.Position.X - startX
-                    local swipePercent = math.abs(deltaX) / newNotif.AbsoluteSize.X
+            mouseUpConn = UserInputService.InputEnded:Connect(function(endInput)
+                if endInput.UserInputType == Enum.UserInputType.MouseButton1 then
+                    isDragging = false
+                    if mouseMoveConn then mouseMoveConn:Disconnect() end
+                    if mouseUpConn then mouseUpConn:Disconnect() end
+
+                    local endX = UserInputService:GetMouseLocation().X
+                    local totalDelta = endX - startX
+                    local swipePercent = math.abs(totalDelta) / newNotif.AbsoluteSize.X
                     
                     if swipePercent > SWIPE_THRESHOLD then
-                        dismissNotification(newNotif, math.sign(deltaX))
+                        dismissNotification(newNotif, math.sign(totalDelta))
                     else
-                        -- Not a full swipe, tween back to center
+                        -- Snap back to center
                         TweenService:Create(newNotif, TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
                             Position = UDim2.new(0.5, 0, newNotif.Position.Y.Scale, newNotif.Position.Y.Offset)
                         }):Play()
@@ -167,14 +157,12 @@ function module.Notify(data)
         end
     end)
     
-    -- Handle the timer in its own thread
+    -- Timer coroutine
     coroutine.wrap(function()
         wait(duration)
-        -- The timer can only dismiss if it hasn't already been swiped
         if not newNotif:GetAttribute("IsDismissing") then
             dismissNotification(newNotif, nil)
         end
-        if inputBeganConn then inputBeganConn:Disconnect() end -- cleanup
     end)()
 end
 
