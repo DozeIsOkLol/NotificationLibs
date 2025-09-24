@@ -3,7 +3,7 @@
 
 -- IMPORTANT: Make sure this URL points to your final, stable source file (e.g., iOSNotifFinal.lua)
 local githubUrl =
-    'https://raw.githubusercontent.com/path/to/your/repo/iOSNotifFinal.lua'
+    'https://raw.githubusercontent.com/DozeIsOkLol/NotificationLibs/refs/heads/main/Iphone/source2.lua'
 
 -- Load the library from the raw GitHub link
 local iOSNotif = loadstring(game:HttpGet(githubUrl))()
