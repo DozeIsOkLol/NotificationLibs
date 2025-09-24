@@ -1,5 +1,5 @@
 --!/usr/bin/env lua
--- iOSNotifStackedSource.lua
+-- iOSNotifStackedSource.lua (Corrected Version)
 -- This version supports multiple, stacked notifications.
 
 local module = {}
@@ -63,7 +63,7 @@ TitleLabel.Name = "TitleLabel"
 TitleLabel.Font = FONT_BOLD
 TitleLabel.TextColor3 = Color3.fromRGB(15, 15, 15)
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-TitleLabel.TextYAlignment = Enum.TextXAlignment.Top
+TitleLabel.TextYAlignment = Enum.TextYAlignment.Top  -- <--- CORRECTED
 TitleLabel.TextSize = 15
 TitleLabel.BackgroundTransparency = 1
 TitleLabel.Position = UDim2.new(0, PADDING + ICON_SIZE + 8, 0, PADDING)
@@ -75,7 +75,7 @@ TimestampLabel.Name = "TimestampLabel"
 TimestampLabel.Font = FONT
 TimestampLabel.TextColor3 = Color3.fromRGB(120, 120, 120)
 TimestampLabel.TextXAlignment = Enum.TextXAlignment.Right
-TimestampLabel.TextYAlignment = Enum.TextXAlignment.Top
+TimestampLabel.TextYAlignment = Enum.TextYAlignment.Top -- <--- CORRECTED
 TimestampLabel.TextSize = 14
 TimestampLabel.BackgroundTransparency = 1
 TimestampLabel.Position = UDim2.new(1, -PADDING - 40, 0, PADDING)
@@ -87,7 +87,7 @@ DescriptionLabel.Name = "DescriptionLabel"
 DescriptionLabel.Font = FONT
 DescriptionLabel.TextColor3 = Color3.fromRGB(15, 15, 15)
 DescriptionLabel.TextXAlignment = Enum.TextXAlignment.Left
-DescriptionLabel.TextYAlignment = Enum.TextYAlignment.Top
+DescriptionLabel.TextYAlignment = Enum.TextYAlignment.Top -- <--- CORRECTED
 DescriptionLabel.TextWrapped = true
 DescriptionLabel.TextSize = 15
 DescriptionLabel.BackgroundTransparency = 1
