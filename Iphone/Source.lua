@@ -1,7 +1,7 @@
 --!/usr/bin/env lua
--- iOSNotifThemedSource.lua (Version 4 - Light/Dark Themes)
--- This version adds a configurable theme system.
---- V0.5
+-- iOSNotifFinalSource.lua (Version 5.1 - Apple Logo Default)
+-- This version sets a default Apple logo icon for all notifications.
+-- v0.7
 
 local module = {}
 
@@ -13,47 +13,24 @@ local CoreGui = game:GetService("CoreGui")
 
 -- --- Theme Configuration ---
 local themes = {
-    Light = {
-        Background = Color3.fromRGB(240, 240, 240),
-        Transparency = 0.25,
-        PrimaryText = Color3.fromRGB(15, 15, 15),
-        SecondaryText = Color3.fromRGB(120, 120, 120)
-    },
-    Dark = {
-        Background = Color3.fromRGB(40, 40, 40),
-        Transparency = 0.3,
-        PrimaryText = Color3.fromRGB(240, 240, 240),
-        SecondaryText = Color3.fromRGB(160, 160, 160)
-    }
+    Light = { Background = Color3.fromRGB(240, 240, 240), Transparency = 0.25, PrimaryText = Color3.fromRGB(15, 15, 15), SecondaryText = Color3.fromRGB(120, 120, 120) },
+    Dark = { Background = Color3.fromRGB(40, 40, 40), Transparency = 0.3, PrimaryText = Color3.fromRGB(240, 240, 240), SecondaryText = Color3.fromRGB(160, 160, 160) },
+    Success = { Background = Color3.fromRGB(60, 110, 75), Transparency = 0.2, PrimaryText = Color3.fromRGB(230, 255, 235), SecondaryText = Color3.fromRGB(180, 220, 190) },
+    Warning = { Background = Color3.fromRGB(120, 100, 50), Transparency = 0.2, PrimaryText = Color3.fromRGB(255, 245, 220), SecondaryText = Color3.fromRGB(220, 200, 160) },
+    Error = { Background = Color3.fromRGB(120, 55, 55), Transparency = 0.2, PrimaryText = Color3.fromRGB(255, 230, 230), SecondaryText = Color3.fromRGB(220, 180, 180) },
+    Info = { Background = Color3.fromRGB(50, 90, 120), Transparency = 0.2, PrimaryText = Color3.fromRGB(220, 235, 255), SecondaryText = Color3.fromRGB(160, 190, 220) }
 }
 
 -- --- UI & Script Configuration ---
-local NOTIFICATION_WIDTH = 350
-local BASE_HEIGHT = 65
-local PADDING = 12
-local ICON_SIZE = 24
-local SPACING = 10
-local TOP_PADDING = 20
-local FONT = Enum.Font.SourceSans
-local FONT_BOLD = Enum.Font.SourceSansBold
-local DEFAULT_DURATION = 7
-local SWIPE_THRESHOLD = 0.3
+local NOTIFICATION_WIDTH = 350; local BASE_HEIGHT = 65; local PADDING = 12; local ICON_SIZE = 24; local SPACING = 10; local TOP_PADDING = 20; local FONT = Enum.Font.SourceSans; local FONT_BOLD = Enum.Font.SourceSansBold; local DEFAULT_DURATION = 7; local SWIPE_THRESHOLD = 0.3
 
 -- --- UI Template Creation (Done Once) ---
 local NotifGui = CoreGui:FindFirstChild("iOSNotifGui")
 if NotifGui then NotifGui:Destroy() end
-
-NotifGui = Instance.new("ScreenGui")
-NotifGui.Name = "iOSNotifGui"
-NotifGui.ResetOnSpawn = false
-NotifGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-NotifGui.Parent = CoreGui
-
--- Template to be cloned for each notification
-local NotificationTemplate = Instance.new("Frame")
-NotificationTemplate.Name = "NotificationTemplate"; NotificationTemplate.Visible = false; NotificationTemplate.Size = UDim2.new(0, NOTIFICATION_WIDTH, 0, BASE_HEIGHT); NotificationTemplate.AnchorPoint = Vector2.new(0.5, 0); NotificationTemplate.Position = UDim2.new(0.5, 0, 0, -BASE_HEIGHT - 20); NotificationTemplate.Parent = NotifGui
+NotifGui = Instance.new("ScreenGui"); NotifGui.Name = "iOSNotifGui"; NotifGui.ResetOnSpawn = false; NotifGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling; NotifGui.Parent = CoreGui
+local NotificationTemplate = Instance.new("Frame"); NotificationTemplate.Name = "NotificationTemplate"; NotificationTemplate.Visible = false; NotificationTemplate.Size = UDim2.new(0, NOTIFICATION_WIDTH, 0, BASE_HEIGHT); NotificationTemplate.AnchorPoint = Vector2.new(0.5, 0); NotificationTemplate.Position = UDim2.new(0.5, 0, 0, -BASE_HEIGHT - 20); NotificationTemplate.Parent = NotifGui
 local UICorner = Instance.new("UICorner"); UICorner.CornerRadius = UDim.new(0, 24); UICorner.Parent = NotificationTemplate
-local AppIcon = Instance.new("ImageLabel"); AppIcon.Name = "AppIcon"; AppIcon.Size = UDim2.new(0, ICON_SIZE, 0, ICON_SIZE); AppIcon.Position = UDim2.new(0, PADDING, 0, PADDING); AppIcon.BackgroundTransparency = 1; AppIcon.Image = "rbxassetid://6031999801"; AppIcon.Parent = NotificationTemplate
+local AppIcon = Instance.new("ImageLabel"); AppIcon.Name = "AppIcon"; AppIcon.Size = UDim2.new(0, ICON_SIZE, 0, ICON_SIZE); AppIcon.Position = UDim2.new(0, PADDING, 0, PADDING); AppIcon.BackgroundTransparency = 1; AppIcon.Image = "rbxassetid://167885145"; AppIcon.Parent = NotificationTemplate -- <-- NEW DEFAULT APPLE LOGO ID
 local AppIconCorner = Instance.new("UICorner"); AppIconCorner.CornerRadius = UDim.new(0, 6); AppIconCorner.Parent = AppIcon
 local TitleLabel = Instance.new("TextLabel"); TitleLabel.Name = "TitleLabel"; TitleLabel.Font = FONT_BOLD; TitleLabel.TextXAlignment = Enum.TextXAlignment.Left; TitleLabel.TextYAlignment = Enum.TextYAlignment.Top; TitleLabel.TextSize = 15; TitleLabel.BackgroundTransparency = 1; TitleLabel.Position = UDim2.new(0, PADDING + ICON_SIZE + 8, 0, PADDING); TitleLabel.Size = UDim2.new(1, -(PADDING*3 + ICON_SIZE + 40), 0, 18); TitleLabel.Parent = NotificationTemplate
 local TimestampLabel = Instance.new("TextLabel"); TimestampLabel.Name = "TimestampLabel"; TimestampLabel.Font = FONT; TimestampLabel.TextXAlignment = Enum.TextXAlignment.Right; TimestampLabel.TextYAlignment = Enum.TextYAlignment.Top; TimestampLabel.TextSize = 14; TimestampLabel.BackgroundTransparency = 1; TimestampLabel.Position = UDim2.new(1, -PADDING - 40, 0, PADDING); TimestampLabel.Size = UDim2.new(0, 40, 0, 18); TimestampLabel.Parent = NotificationTemplate
@@ -70,9 +47,7 @@ end
 local function repositionAll()
     local currentY = TOP_PADDING
     for _, notifFrame in ipairs(activeNotifications) do
-        local tween = TweenService:Create(notifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-            Position = UDim2.new(notifFrame.Position.X.Scale, notifFrame.Position.X.Offset, 0, currentY)
-        })
+        local tween = TweenService:Create(notifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), { Position = UDim2.new(notifFrame.Position.X.Scale, notifFrame.Position.X.Offset, 0, currentY) })
         tween:Play()
         currentY = currentY + notifFrame.AbsoluteSize.Y + SPACING
     end
@@ -82,10 +57,7 @@ local function dismissNotification(notifFrame, swipeDirection)
     if not notifFrame or notifFrame:GetAttribute("IsDismissing") then return end
     notifFrame:SetAttribute("IsDismissing", true)
 
-    for i, v in ipairs(activeNotifications) do
-        if v == notifFrame then table.remove(activeNotifications, i); break end
-    end
-    
+    for i, v in ipairs(activeNotifications) do if v == notifFrame then table.remove(activeNotifications, i); break end end
     repositionAll()
     
     local exitPosition = swipeDirection and UDim2.new(0.5 + (0.6 * swipeDirection), 0, notifFrame.Position.Y.Scale, notifFrame.Position.Y.Offset) or UDim2.new(0.5, 0, 0, -notifFrame.AbsoluteSize.Y)
@@ -96,69 +68,45 @@ local function dismissNotification(notifFrame, swipeDirection)
 end
 
 function module.Notify(data)
-    if typeof(data) ~= "table" then
-        warn("iOSNotif Error: Notify data must be a table.")
-        return
-    end
+    if typeof(data) ~= "table" then warn("iOSNotif Error: Notify data must be a table."); return end
 
     local newNotif = NotificationTemplate:Clone()
     
-    -- Select and apply theme
-    local themeName = data.Theme or "Light"
-    local selectedTheme = themes[themeName] or themes.Light
-    newNotif.BackgroundColor3 = selectedTheme.Background
-    newNotif.BackgroundTransparency = selectedTheme.Transparency
-    newNotif.TitleLabel.TextColor3 = selectedTheme.PrimaryText
-    newNotif.DescriptionLabel.TextColor3 = selectedTheme.PrimaryText
-    newNotif.TimestampLabel.TextColor3 = selectedTheme.SecondaryText
+    local themeName = data.Theme or "Light"; local selectedTheme = themes[themeName] or themes.Light
+    newNotif.BackgroundColor3 = selectedTheme.Background; newNotif.BackgroundTransparency = selectedTheme.Transparency
+    newNotif.TitleLabel.TextColor3 = selectedTheme.PrimaryText; newNotif.DescriptionLabel.TextColor3 = selectedTheme.PrimaryText; newNotif.TimestampLabel.TextColor3 = selectedTheme.SecondaryText
 
-    -- Populate content
     newNotif.TitleLabel.Text = data.Title or "Notification"
     newNotif.DescriptionLabel.Text = data.Description or ""
-    newNotif.AppIcon.Image = data.Icon or "rbxassetid://6031999801"
-    newNotif.TimestampLabel.Text = "now"
+    newNotif.AppIcon.Image = data.Icon or newNotif.AppIcon.Image -- If no icon is provided, it uses the default one set in the template
+    newNotif.TimestampLabel.Text = data.Timestamp or "now"
     local duration = data.Duration or DEFAULT_DURATION
 
-    -- Calculate dynamic height
     local descriptionHeight = calculateTextHeight(newNotif.DescriptionLabel.Text)
     local totalHeight = PADDING + 18 + descriptionHeight + PADDING
     if totalHeight < BASE_HEIGHT then totalHeight = BASE_HEIGHT end
     newNotif.DescriptionLabel.Size = UDim2.new(1, -PADDING*2, 0, descriptionHeight)
     newNotif.Size = UDim2.new(0, NOTIFICATION_WIDTH, 0, totalHeight)
     newNotif.Position = UDim2.new(0.5, 0, 0, -totalHeight)
-    newNotif.Parent = NotifGui
-    newNotif.Visible = true
+    newNotif.Parent = NotifGui; newNotif.Visible = true
 
     table.insert(activeNotifications, 1, newNotif)
     repositionAll()
 
-    -- PC Swipe Logic
-    local isDragging = false
-    local startX, startPos
-    local mouseMoveConn, mouseUpConn
-
+    local isDragging = false; local startX, startPos; local mouseMoveConn, mouseUpConn
     newNotif.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            isDragging = true
-            startX = UserInputService:GetMouseLocation().X
-            startPos = newNotif.Position.X.Offset
-            
+            isDragging = true; startX = UserInputService:GetMouseLocation().X; startPos = newNotif.Position.X.Offset
             mouseMoveConn = UserInputService.InputChanged:Connect(function(moveInput)
                 if moveInput.UserInputType == Enum.UserInputType.MouseMovement and isDragging then
-                    local currentX = UserInputService:GetMouseLocation().X
-                    local deltaX = currentX - startX
+                    local deltaX = UserInputService:GetMouseLocation().X - startX
                     newNotif.Position = UDim2.new(0.5, startPos + deltaX, newNotif.Position.Y.Scale, newNotif.Position.Y.Offset)
                 end
             end)
-
             mouseUpConn = UserInputService.InputEnded:Connect(function(endInput)
                 if endInput.UserInputType == Enum.UserInputType.MouseButton1 then
-                    isDragging = false
-                    if mouseMoveConn then mouseMoveConn:Disconnect() end
-                    if mouseUpConn then mouseUpConn:Disconnect() end
-
-                    local endX = UserInputService:GetMouseLocation().X
-                    local totalDelta = endX - startX
+                    isDragging = false; if mouseMoveConn then mouseMoveConn:Disconnect() end; if mouseUpConn then mouseUpConn:Disconnect() end
+                    local totalDelta = UserInputService:GetMouseLocation().X - startX
                     if math.abs(totalDelta) / newNotif.AbsoluteSize.X > SWIPE_THRESHOLD then
                         dismissNotification(newNotif, math.sign(totalDelta))
                     else
@@ -169,12 +117,9 @@ function module.Notify(data)
         end
     end)
     
-    -- Timer coroutine
     coroutine.wrap(function()
         wait(duration)
-        if not newNotif:GetAttribute("IsDismissing") then
-            dismissNotification(newNotif, nil)
-        end
+        if not newNotif:GetAttribute("IsDismissing") then dismissNotification(newNotif, nil) end
     end)()
 end
 
