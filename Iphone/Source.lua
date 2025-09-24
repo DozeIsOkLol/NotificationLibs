@@ -1,6 +1,6 @@
 --!/usr/bin/env lua
--- iOSNotifSource.lua
--- This is the main library file. Host this on GitHub.
+-- iOSNotifStackedSource.lua
+-- This version supports multiple, stacked notifications.
 
 local module = {}
 
@@ -15,11 +15,13 @@ local NOTIFICATION_WIDTH = 350
 local BASE_HEIGHT = 65
 local PADDING = 12
 local ICON_SIZE = 24
+local SPACING = 10 -- The vertical gap between notifications
+local TOP_PADDING = 20 -- The space from the top of the screen
 local FONT = Enum.Font.SourceSans
 local FONT_BOLD = Enum.Font.SourceSansBold
-local DEFAULT_DURATION = 5 -- Default duration in seconds
+local DEFAULT_DURATION = 5
 
--- --- UI Creation (Done Once) ---
+-- --- UI Template Creation (Done Once) ---
 local NotifGui = CoreGui:FindFirstChild("iOSNotifGui")
 if NotifGui then NotifGui:Destroy() end
 
@@ -29,57 +31,59 @@ NotifGui.ResetOnSpawn = false
 NotifGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 NotifGui.Parent = CoreGui
 
-local NotificationFrame = Instance.new("Frame")
-NotificationFrame.Name = "NotificationFrame"
-NotificationFrame.Size = UDim2.new(0, NOTIFICATION_WIDTH, 0, BASE_HEIGHT)
-NotificationFrame.AnchorPoint = Vector2.new(0.5, 0)
-NotificationFrame.Position = UDim2.new(0.5, 0, 0, -BASE_HEIGHT - 20) -- Start off-screen
-NotificationFrame.BackgroundColor3 = Color3.fromRGB(240, 240, 240)
-NotificationFrame.BackgroundTransparency = 0.25
-NotificationFrame.Parent = NotifGui
+-- This frame is a template that we will clone for each notification
+local NotificationTemplate = Instance.new("Frame")
+NotificationTemplate.Name = "NotificationTemplate"
+NotificationTemplate.Visible = false -- Keep the template hidden
+NotificationTemplate.Size = UDim2.new(0, NOTIFICATION_WIDTH, 0, BASE_HEIGHT)
+NotificationTemplate.AnchorPoint = Vector2.new(0.5, 0)
+NotificationTemplate.Position = UDim2.new(0.5, 0, 0, -BASE_HEIGHT - 20)
+NotificationTemplate.BackgroundColor3 = Color3.fromRGB(240, 240, 240)
+NotificationTemplate.BackgroundTransparency = 0.25
+NotificationTemplate.Parent = NotifGui
 
 local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0, 24)
-UICorner.Parent = NotificationFrame
+UICorner.Parent = NotificationTemplate
 
 local AppIcon = Instance.new("ImageLabel")
 AppIcon.Name = "AppIcon"
 AppIcon.Size = UDim2.new(0, ICON_SIZE, 0, ICON_SIZE)
 AppIcon.Position = UDim2.new(0, PADDING, 0, PADDING)
 AppIcon.BackgroundTransparency = 1
-AppIcon.Image = "rbxassetid://6031999801" -- Default Messages Icon
-AppIcon.Parent = NotificationFrame
+AppIcon.Image = "rbxassetid://6031999801"
+AppIcon.Parent = NotificationTemplate
 
 local AppIconCorner = Instance.new("UICorner")
 AppIconCorner.CornerRadius = UDim.new(0, 6)
 AppIconCorner.Parent = AppIcon
 
 local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Name = "Title"
+TitleLabel.Name = "TitleLabel"
 TitleLabel.Font = FONT_BOLD
 TitleLabel.TextColor3 = Color3.fromRGB(15, 15, 15)
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-TitleLabel.TextYAlignment = Enum.TextYAlignment.Top
+TitleLabel.TextYAlignment = Enum.TextXAlignment.Top
 TitleLabel.TextSize = 15
 TitleLabel.BackgroundTransparency = 1
 TitleLabel.Position = UDim2.new(0, PADDING + ICON_SIZE + 8, 0, PADDING)
 TitleLabel.Size = UDim2.new(1, -(PADDING*3 + ICON_SIZE + 40), 0, 18)
-TitleLabel.Parent = NotificationFrame
+TitleLabel.Parent = NotificationTemplate
 
 local TimestampLabel = Instance.new("TextLabel")
-TimestampLabel.Name = "Timestamp"
+TimestampLabel.Name = "TimestampLabel"
 TimestampLabel.Font = FONT
 TimestampLabel.TextColor3 = Color3.fromRGB(120, 120, 120)
 TimestampLabel.TextXAlignment = Enum.TextXAlignment.Right
-TimestampLabel.TextYAlignment = Enum.TextYAlignment.Top
+TimestampLabel.TextYAlignment = Enum.TextXAlignment.Top
 TimestampLabel.TextSize = 14
 TimestampLabel.BackgroundTransparency = 1
 TimestampLabel.Position = UDim2.new(1, -PADDING - 40, 0, PADDING)
 TimestampLabel.Size = UDim2.new(0, 40, 0, 18)
-TimestampLabel.Parent = NotificationFrame
+TimestampLabel.Parent = NotificationTemplate
 
 local DescriptionLabel = Instance.new("TextLabel")
-DescriptionLabel.Name = "Description"
+DescriptionLabel.Name = "DescriptionLabel"
 DescriptionLabel.Font = FONT
 DescriptionLabel.TextColor3 = Color3.fromRGB(15, 15, 15)
 DescriptionLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -88,66 +92,28 @@ DescriptionLabel.TextWrapped = true
 DescriptionLabel.TextSize = 15
 DescriptionLabel.BackgroundTransparency = 1
 DescriptionLabel.Position = UDim2.new(0, PADDING, 0, PADDING + 18)
-DescriptionLabel.Size = UDim2.new(1, -PADDING * 2, 0, 0) -- Height is dynamic
-DescriptionLabel.Parent = NotificationFrame
+DescriptionLabel.Size = UDim2.new(1, -PADDING * 2, 0, 0)
+DescriptionLabel.Parent = NotificationTemplate
 
 -- --- Logic ---
-local notificationQueue = {}
-local isShowing = false
+local activeNotifications = {}
 
 local function calculateTextHeight(text)
-    local sizeVector = TextService:GetTextSize(
-        text,
-        DescriptionLabel.TextSize,
-        DescriptionLabel.Font,
-        Vector2.new(DescriptionLabel.AbsoluteSize.X, 1000)
-    )
+    local descSize = DescriptionLabel.AbsoluteSize
+    local sizeVector = TextService:GetTextSize(text, DescriptionLabel.TextSize, DescriptionLabel.Font, Vector2.new(NOTIFICATION_WIDTH - PADDING*2, 1000))
     return sizeVector.Y
 end
 
-local function processQueue()
-    if isShowing or #notificationQueue == 0 then return end
-
-    isShowing = true
-    local data = table.remove(notificationQueue, 1)
-
-    -- Update Content
-    TitleLabel.Text = data.Title or "Notification"
-    DescriptionLabel.Text = data.Description or ""
-    AppIcon.Image = data.Icon or "rbxassetid://6031999801"
-    TimestampLabel.Text = "now"
-    local duration = data.Duration or DEFAULT_DURATION
-
-    -- Calculate dynamic height
-    local descriptionHeight = calculateTextHeight(DescriptionLabel.Text)
-    local totalHeight = PADDING + 18 + descriptionHeight + PADDING
-    if totalHeight < BASE_HEIGHT then totalHeight = BASE_HEIGHT end
-    
-    DescriptionLabel.Size = UDim2.new(1, -PADDING*2, 0, descriptionHeight)
-
-    -- Pre-animation setup (resize while off-screen)
-    NotificationFrame.Position = UDim2.new(0.5, 0, 0, -totalHeight - 20)
-    NotificationFrame.Size = UDim2.new(0, NOTIFICATION_WIDTH, 0, totalHeight)
-
-    -- Animate In
-    local slideIn = TweenService:Create(NotificationFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0.5, 0, 0, 20)
-    })
-    slideIn:Play()
-    slideIn.Completed:Wait()
-
-    wait(duration)
-
-    -- Animate Out
-    local slideOut = TweenService:Create(NotificationFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
-        Position = UDim2.new(0.5, 0, 0, -totalHeight - 20)
-    })
-    slideOut:Play()
-    slideOut.Completed:Wait()
-
-    isShowing = false
-    RunService.Heartbeat:Wait()
-    processQueue()
+-- This function repositions all notifications. Can be called when one is added or removed.
+local function repositionAll()
+    local currentY = TOP_PADDING
+    for i, notifFrame in ipairs(activeNotifications) do
+        local tween = TweenService:Create(notifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+            Position = UDim2.new(0.5, 0, 0, currentY)
+        })
+        tween:Play()
+        currentY = currentY + notifFrame.AbsoluteSize.Y + SPACING
+    end
 end
 
 function module.Notify(data)
@@ -155,8 +121,62 @@ function module.Notify(data)
         warn("iOSNotif Error: Notify data must be a table.")
         return
     end
-    table.insert(notificationQueue, data)
-    processQueue()
+
+    -- Create a new notification by cloning the template
+    local newNotif = NotificationTemplate:Clone()
+
+    -- Populate the new notification with data
+    newNotif.TitleLabel.Text = data.Title or "Notification"
+    newNotif.DescriptionLabel.Text = data.Description or ""
+    newNotif.AppIcon.Image = data.Icon or "rbxassetid://6031999801"
+    newNotif.TimestampLabel.Text = "now"
+    local duration = data.Duration or DEFAULT_DURATION
+
+    -- Calculate dynamic height and apply it
+    local descriptionHeight = calculateTextHeight(newNotif.DescriptionLabel.Text)
+    local totalHeight = PADDING + 18 + descriptionHeight + PADDING
+    if totalHeight < BASE_HEIGHT then totalHeight = BASE_HEIGHT end
+    
+    newNotif.DescriptionLabel.Size = UDim2.new(1, -PADDING*2, 0, descriptionHeight)
+    newNotif.Size = UDim2.new(0, NOTIFICATION_WIDTH, 0, totalHeight)
+
+    -- Set its starting position off-screen, above the first notification spot
+    newNotif.Position = UDim2.new(0.5, 0, 0, -totalHeight)
+    newNotif.Parent = NotifGui
+    newNotif.Visible = true
+
+    -- Add to the top of the active notifications list
+    table.insert(activeNotifications, 1, newNotif)
+
+    -- Reposition all existing notifications to make space
+    repositionAll()
+
+    -- Coroutine to handle the life of this single notification
+    coroutine.wrap(function()
+        -- Wait for the notification's duration
+        wait(duration)
+
+        -- Animate out
+        local slideOut = TweenService:Create(newNotif, TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
+            Position = UDim2.new(0.5, 0, 0, -totalHeight - 20)
+        })
+        slideOut:Play()
+
+        -- Remove from the active list
+        for i, v in ipairs(activeNotifications) do
+            if v == newNotif then
+                table.remove(activeNotifications, i)
+                break
+            end
+        end
+
+        -- Reposition the remaining notifications to fill the gap
+        repositionAll()
+        
+        -- Wait for animation to finish, then destroy
+        slideOut.Completed:Wait()
+        newNotif:Destroy()
+    end)()
 end
 
 return module
