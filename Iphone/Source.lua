@@ -1,7 +1,7 @@
 --!/usr/bin/env lua
--- iOSNotifFinalSource.lua (Version 5.1 - Apple Logo Default)
--- This version sets a default Apple logo icon for all notifications.
--- v0.7
+-- iOSNotifFinalSource.lua (Version 5.2 - User-Specified Apple Logo)
+-- This version sets the user-provided Apple logo ID as the default icon.
+-- v0.8
 
 local module = {}
 
@@ -30,7 +30,7 @@ if NotifGui then NotifGui:Destroy() end
 NotifGui = Instance.new("ScreenGui"); NotifGui.Name = "iOSNotifGui"; NotifGui.ResetOnSpawn = false; NotifGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling; NotifGui.Parent = CoreGui
 local NotificationTemplate = Instance.new("Frame"); NotificationTemplate.Name = "NotificationTemplate"; NotificationTemplate.Visible = false; NotificationTemplate.Size = UDim2.new(0, NOTIFICATION_WIDTH, 0, BASE_HEIGHT); NotificationTemplate.AnchorPoint = Vector2.new(0.5, 0); NotificationTemplate.Position = UDim2.new(0.5, 0, 0, -BASE_HEIGHT - 20); NotificationTemplate.Parent = NotifGui
 local UICorner = Instance.new("UICorner"); UICorner.CornerRadius = UDim.new(0, 24); UICorner.Parent = NotificationTemplate
-local AppIcon = Instance.new("ImageLabel"); AppIcon.Name = "AppIcon"; AppIcon.Size = UDim2.new(0, ICON_SIZE, 0, ICON_SIZE); AppIcon.Position = UDim2.new(0, PADDING, 0, PADDING); AppIcon.BackgroundTransparency = 1; AppIcon.Image = "rbxassetid://167885145"; AppIcon.Parent = NotificationTemplate -- <-- NEW DEFAULT APPLE LOGO ID
+local AppIcon = Instance.new("ImageLabel"); AppIcon.Name = "AppIcon"; AppIcon.Size = UDim2.new(0, ICON_SIZE, 0, ICON_SIZE); AppIcon.Position = UDim2.new(0, PADDING, 0, PADDING); AppIcon.BackgroundTransparency = 1; AppIcon.Image = "rbxassetid://526339621"; AppIcon.Parent = NotificationTemplate -- <-- YOUR SPECIFIC APPLE LOGO ID
 local AppIconCorner = Instance.new("UICorner"); AppIconCorner.CornerRadius = UDim.new(0, 6); AppIconCorner.Parent = AppIcon
 local TitleLabel = Instance.new("TextLabel"); TitleLabel.Name = "TitleLabel"; TitleLabel.Font = FONT_BOLD; TitleLabel.TextXAlignment = Enum.TextXAlignment.Left; TitleLabel.TextYAlignment = Enum.TextYAlignment.Top; TitleLabel.TextSize = 15; TitleLabel.BackgroundTransparency = 1; TitleLabel.Position = UDim2.new(0, PADDING + ICON_SIZE + 8, 0, PADDING); TitleLabel.Size = UDim2.new(1, -(PADDING*3 + ICON_SIZE + 40), 0, 18); TitleLabel.Parent = NotificationTemplate
 local TimestampLabel = Instance.new("TextLabel"); TimestampLabel.Name = "TimestampLabel"; TimestampLabel.Font = FONT; TimestampLabel.TextXAlignment = Enum.TextXAlignment.Right; TimestampLabel.TextYAlignment = Enum.TextYAlignment.Top; TimestampLabel.TextSize = 14; TimestampLabel.BackgroundTransparency = 1; TimestampLabel.Position = UDim2.new(1, -PADDING - 40, 0, PADDING); TimestampLabel.Size = UDim2.new(0, 40, 0, 18); TimestampLabel.Parent = NotificationTemplate
@@ -78,7 +78,7 @@ function module.Notify(data)
 
     newNotif.TitleLabel.Text = data.Title or "Notification"
     newNotif.DescriptionLabel.Text = data.Description or ""
-    newNotif.AppIcon.Image = data.Icon or newNotif.AppIcon.Image -- If no icon is provided, it uses the default one set in the template
+    newNotif.AppIcon.Image = data.Icon or newNotif.AppIcon.Image
     newNotif.TimestampLabel.Text = data.Timestamp or "now"
     local duration = data.Duration or DEFAULT_DURATION
 
