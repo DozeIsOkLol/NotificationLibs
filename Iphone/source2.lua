@@ -2,6 +2,8 @@
 -- iOSNotifStackedSource.lua (Corrected Version)
 -- This version supports multiple, stacked notifications.
 
+--- v0.1
+
 local module = {}
 
 -- Services
