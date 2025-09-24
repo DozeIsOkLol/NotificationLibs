@@ -1,6 +1,6 @@
 --!/usr/bin/env lua
--- iOSNotifPrestigeSource.lua (Version 9.0 - Major Bug Fixes & Stability)
--- Corrects positioning, RichText, and swipe logic from the previous version.
+-- iOSNotifSonicSource.lua (Version 10.0 - Sound Effects)
+-- This version adds the 'Sound' parameter for auditory feedback.
 
 local module = {}
 
@@ -9,7 +9,7 @@ local TweenService = game:GetService("TweenService"); local TextService = game:G
 
 -- --- Configuration ---
 local themes = { Light = { B = Color3.fromRGB(240, 240, 240), T = 0.25, P = Color3.fromRGB(15, 15, 15), S = Color3.fromRGB(120, 120, 120) }, Dark = { B = Color3.fromRGB(40, 40, 40), T = 0.3, P = Color3.fromRGB(240, 240, 240), S = Color3.fromRGB(160, 160, 160) }, Success = { B = Color3.fromRGB(60, 110, 75), T = 0.2, P = Color3.fromRGB(230, 255, 235), S = Color3.fromRGB(180, 220, 190) }, Warning = { B = Color3.fromRGB(120, 100, 50), T = 0.2, P = Color3.fromRGB(255, 245, 220), S = Color3.fromRGB(220, 200, 160) }, Error = { B = Color3.fromRGB(120, 55, 55), T = 0.2, P = Color3.fromRGB(255, 230, 230), S = Color3.fromRGB(220, 180, 180) }, Info = { B = Color3.fromRGB(50, 90, 120), T = 0.2, P = Color3.fromRGB(220, 235, 255), S = Color3.fromRGB(160, 190, 220) } }
-local globalConfig = { Position = "TopCenter", RichText = false }; local NOTIFICATION_WIDTH = 350; local BASE_HEIGHT = 65; local PADDING = 12; local SPACING = 10; local TOP_PADDING = 20; local FONT = Enum.Font.SourceSans; local FONT_BOLD = Enum.Font.SourceSansBold; local DEFAULT_DURATION = 7; local SWIPE_THRESHOLD = 0.3
+local globalConfig = { Position = "TopCenter", RichText = false, Sound = nil }; local NOTIFICATION_WIDTH = 350; local BASE_HEIGHT = 65; local PADDING = 12; local SPACING = 10; local TOP_PADDING = 20; local FONT = Enum.Font.SourceSans; local FONT_BOLD = Enum.Font.SourceSansBold; local DEFAULT_DURATION = 7; local SWIPE_THRESHOLD = 0.3
 
 -- --- UI Template Creation ---
 local NotifGui = CoreGui:FindFirstChild("iOSNotifGui"); if NotifGui then NotifGui:Destroy() end
@@ -19,6 +19,7 @@ local UICorner = Instance.new("UICorner"); UICorner.CornerRadius = UDim.new(0, 2
 local TitleLabel = Instance.new("TextLabel"); TitleLabel.Name = "TitleLabel"; TitleLabel.Font = FONT_BOLD; TitleLabel.TextXAlignment = Enum.TextXAlignment.Left; TitleLabel.TextYAlignment = Enum.TextYAlignment.Top; TitleLabel.TextSize = 15; TitleLabel.BackgroundTransparency = 1; TitleLabel.Position = UDim2.new(0, PADDING, 0, PADDING); TitleLabel.Size = UDim2.new(1, -(PADDING*2 + 40), 0, 18); TitleLabel.Parent = NotificationTemplate
 local TimestampLabel = Instance.new("TextLabel"); TimestampLabel.Name = "TimestampLabel"; TimestampLabel.Font = FONT; TimestampLabel.TextXAlignment = Enum.TextXAlignment.Right; TimestampLabel.TextYAlignment = Enum.TextYAlignment.Top; TimestampLabel.TextSize = 14; TimestampLabel.BackgroundTransparency = 1; TimestampLabel.Position = UDim2.new(1, -PADDING - 40, 0, PADDING); TimestampLabel.Size = UDim2.new(0, 40, 0, 18); TimestampLabel.Parent = NotificationTemplate
 local DescriptionLabel = Instance.new("TextLabel"); DescriptionLabel.Name = "DescriptionLabel"; DescriptionLabel.Font = FONT; DescriptionLabel.TextXAlignment = Enum.TextXAlignment.Left; DescriptionLabel.TextYAlignment = Enum.TextYAlignment.Top; DescriptionLabel.TextWrapped = true; DescriptionLabel.TextSize = 15; DescriptionLabel.BackgroundTransparency = 1; DescriptionLabel.Position = UDim2.new(0, PADDING, 0, PADDING + 18); DescriptionLabel.Size = UDim2.new(1, -PADDING * 2, 0, 0); DescriptionLabel.RichText = false; DescriptionLabel.Parent = NotificationTemplate
+local Sound = Instance.new("Sound"); Sound.Name = "NotifSound"; Sound.Volume = 0.5; Sound.Parent = NotificationTemplate -- NEW: Sound object in template
 
 -- --- Core Logic ---
 local activeNotifications = {}; local idToFrameMap = {}; local nextNotifId = 1
@@ -36,10 +37,12 @@ function module.Notify(data)
     newNotif.TitleLabel.Text = data.Title or "Notification"; newNotif.DescriptionLabel.Text = data.Description or ""
     newNotif.TimestampLabel.Text = data.Timestamp or globalConfig.Timestamp or "now"; local useRichText = data.RichText or globalConfig.RichText or false; newNotif.DescriptionLabel.RichText = useRichText
     local duration = data.Duration or globalConfig.Duration or DEFAULT_DURATION
+    local soundId = data.Sound or globalConfig.Sound
+    if soundId and typeof(soundId) == "string" then newNotif.NotifSound.SoundId = soundId; newNotif.NotifSound:Play() end -- NEW: Play sound
     local descriptionHeight = calculateTextHeight(newNotif.DescriptionLabel.Text, useRichText); local totalHeight = PADDING + 18 + descriptionHeight + PADDING; if totalHeight < BASE_HEIGHT then totalHeight = BASE_HEIGHT end; newNotif.DescriptionLabel.Size = UDim2.new(1, -PADDING*2, 0, descriptionHeight); newNotif.Size = UDim2.new(0, NOTIFICATION_WIDTH, 0, totalHeight); newNotif.Position = UDim2.new(posInfo.P.X.Scale, posInfo.P.X.Offset, posInfo.P.Y.Scale, (-totalHeight - 20) * posInfo.D); newNotif.Parent = NotifGui; newNotif.Visible = true
     table.insert(activeNotifications, 1, newNotif); idToFrameMap[notifId] = newNotif; repositionAll()
     local isDragging = false; local startX, startPos; local mouseMoveConn, mouseUpConn
-    newNotif.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then isDragging = true; startX = UserInputService:GetMouseLocation().X; startPos = notifFrame.Position.X.Offset; mouseMoveConn = UserInputService.InputChanged:Connect(function(moveInput) if moveInput.UserInputType == Enum.UserInputType.MouseMovement and isDragging then newNotif.Position = UDim2.new(posInfo.P.X.Scale, startPos + (UserInputService:GetMouseLocation().X - startX), newNotif.Position.Y.Scale, newNotif.Position.Y.Offset) end end); mouseUpConn = UserInputService.InputEnded:Connect(function(endInput) if endInput.UserInputType == Enum.UserInputType.MouseButton1 then isDragging = false; if mouseMoveConn then mouseMoveConn:Disconnect() end; if mouseUpConn then mouseUpConn:Disconnect() end; local totalDelta = UserInputService:GetMouseLocation().X - startX; if math.abs(totalDelta) / newNotif.AbsoluteSize.X > SWIPE_THRESHOLD then dismissNotification(newNotif, math.sign(totalDelta)) else TweenService:Create(newNotif, TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), { Position = UDim2.new(posInfo.P.X.Scale, posInfo.P.X.Offset, newNotif.Position.Y.Scale, newNotif.Position.Y.Offset) }):Play() end end end) end end)
+    newNotif.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then isDragging = true; startX = UserInputService:GetMouseLocation().X; startPos = newNotif.Position.X.Offset; mouseMoveConn = UserInputService.InputChanged:Connect(function(moveInput) if moveInput.UserInputType == Enum.UserInputType.MouseMovement and isDragging then newNotif.Position = UDim2.new(posInfo.P.X.Scale, startPos + (UserInputService:GetMouseLocation().X - startX), newNotif.Position.Y.Scale, newNotif.Position.Y.Offset) end end); mouseUpConn = UserInputService.InputEnded:Connect(function(endInput) if endInput.UserInputType == Enum.UserInputType.MouseButton1 then isDragging = false; if mouseMoveConn then mouseMoveConn:Disconnect() end; if mouseUpConn then mouseUpConn:Disconnect() end; local totalDelta = UserInputService:GetMouseLocation().X - startX; if math.abs(totalDelta) / newNotif.AbsoluteSize.X > SWIPE_THRESHOLD then dismissNotification(newNotif, math.sign(totalDelta)) else TweenService:Create(newNotif, TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), { Position = UDim2.new(posInfo.P.X.Scale, posInfo.P.X.Offset, newNotif.Position.Y.Scale, newNotif.Position.Y.Offset) }):Play() end end end) end end)
     coroutine.wrap(function() wait(duration); if not newNotif:GetAttribute("IsDismissing") then dismissNotification(newNotif, nil) end end)()
     return notifId
 end
